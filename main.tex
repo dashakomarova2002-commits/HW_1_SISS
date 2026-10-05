@@ -1,0 +1,1219 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian]{babel}
+\usepackage{textcomp}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listingsutf8}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+
+% Настройка полей
+\geometry{
+    a4paper,
+    left=2.5cm,
+    right=1.5cm,
+    top=2cm,
+    bottom=2cm
+}
+
+% Настройка заголовков
+\titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+% Настройка кода (в листингах только латиница)
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!40!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny,
+    breaklines=true,
+    frame=single,
+    captionpos=b,
+    showstringspaces=false,
+    tabsize=4
+}
+
+% Настройка колонтитулов
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Лабораторная работа: Проектирование AI-сервиса на FastAPI}
+\fancyhead[R]{\thepage}
+\fancyfoot[C]{}
+
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \textbf{МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ}
+        \vspace{0.5cm}
+
+        \textbf{Федерального государственного автономного образовательного учреждения \\ высшего образования}
+        \vspace{0.3cm}
+
+        \textbf{«НАЦИОНАЛЬНЫЙ ИССЛЕДОВАТЕЛЬСКИЙ ТЕХНОЛОГИЧЕСКИЙ УНИВЕРСИТЕТ МИСИС»}
+        \vspace{2cm}
+
+        \textbf{Институт компьютерных наук}
+        \vspace{0.3cm}
+
+        \textbf{Кафедра Инженерной кибернетики}
+        \vspace{1cm}
+
+        \textbf{Лабораторная работа №1}
+        \vspace{0.3cm}
+
+        \textbf{по дисциплине «Современные интеллектуальные сетевые сервисы»}
+        \vspace{1.5cm}
+
+        \huge{\textbf{Проектирование AI-сервиса \\ на FastAPI}}
+        \vspace{2cm}
+    \end{center}
+
+    \begin{flushright}
+        \textbf{Выполнил:} \\
+        Студент группы МПИ 25-1-2\\
+        Д.А. Комарова \\
+        \vspace{0.5cm}
+        \textbf{Проверил:} \\
+        Преподаватель \\
+        М.Е. Корнет \\
+        \vspace{2cm}
+        \textbf{Оценка:} \hrulefill
+    \end{flushright}
+
+    \begin{center}
+        \vfill
+        Москва, 2026
+    \end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Цель работы}
+
+Цель практической работы — научиться проектировать программную архитектуру AI-сервиса, использующего модель машинного обучения, определить место API в общей ИИ-системе и реализовать REST API на FastAPI, изучив основные принципы программного взаимодействия между AI-моделью и внешними информационными системами.
+
+\section{Задачи работы}
+
+В ходе работы необходимо:
+
+\begin{itemize}
+    \item определить потребителей AI-сервиса;
+    \item определить формат входных и выходных данных;
+    \item спроектировать контур инференса;
+    \item разделить синхронные и асинхронные операции;
+    \item определить основные программные компоненты системы;
+    \item выбрать протоколы взаимодействия;
+    \item сформировать структурированный контракт REST API для AI-сервиса;
+    \item определить способы хранения результатов;
+    \item определить требования к логированию и наблюдаемости;
+    \item выявить основные архитектурные риски;
+    \item создать приложение на FastAPI и реализовать REST endpoints;
+    \item изучить методы GET и POST, передачу данных через JSON, использование path- и query-параметров;
+    \item описывать входные и выходные схемы с помощью Pydantic и выполнять валидацию входных данных;
+    \item возвращать корректные HTTP-коды и обрабатывать ошибки;
+    \item изучить автоматически создаваемую OpenAPI-документацию и протестировать API через Swagger UI;
+    \item реализовать минимальный прототип API на FastAPI.
+\end{itemize}
+
+\section{Исходные данные}
+
+Банк разрабатывает сервис агроскоринга. Система должна оценивать риск при работе с сельскохозяйственными предприятиями. Пользователь или другая информационная система передаёт сведения о хозяйстве: регион, площадь посевов, тип основной культуры, погодные показатели, историю платежей, количество просроченных платежей, размер текущей задолженности.
+
+На основании этих данных модель машинного обучения должна определить риск профиля предприятия. Результат должен содержать числовую оценку риска, категорию риска и рекомендацию оператору банка.
+
+Пример ответа:
+
+\begin{lstlisting}[language=Python, caption={Пример ответа /predict}]
+{
+    "risk_score": 0.73,
+    "risk_level": "high",
+    "recommendation": "Additional check required"
+}
+\end{lstlisting}
+
+Сервис должен позволять:
+
+\begin{itemize}
+    \item проверить, работает ли API;
+    \item получить информацию о модели;
+    \item выполнить оценку риска одного хозяйства;
+    \item получить сохранённый результат прогноза;
+    \item получить несколько последних прогнозов;
+    \item корректно сообщать клиенту об ошибках.
+\end{itemize}
+
+Предполагается, что в будущем этим API будут пользоваться: CRM банка, веб-портал, мобильное приложение, внутренние банковские сервисы, BI-система.
+
+\section{Требуемые endpoints}
+
+API должен иметь следующие endpoints:
+
+\begin{table}[H]
+\centering
+\caption{Список endpoints API}
+\label{tab:endpoints}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Метод} & \textbf{Endpoint} & \textbf{Назначение} \\
+\hline
+GET  & /health                    & Проверка работоспособности API \\
+GET  & /model-info                & Информация о модели \\
+POST & /predict                   & Оценка риска хозяйства \\
+GET  & /predictions/\{request\_id\} & Получение прогноза по ID \\
+GET  & /predictions               & Список прогнозов \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Теоретическая часть}
+
+\subsection{Что такое REST API}
+
+REST API — способ взаимодействия программных систем через HTTP. Клиент отправляет запрос (HTTP Request), сервер обрабатывает его и возвращает ответ (HTTP Response).
+
+Клиенту не нужно знать: на каком языке написана модель, где она находится, является ли модель scikit-learn или PyTorch, сколько функций выполняется внутри сервера. Клиенту достаточно знать контракт API.
+
+\subsection{Место API в интеллектуальной системе}
+
+AI-сервис редко существует изолированно. Как правило, он встроен в более крупную информационную систему. Типовая схема:
+
+\begin{center}
+Пользователь / UI $\rightarrow$ Внешняя система (CRM, ERP, мобильное приложение) \\
+$\rightarrow$ HTTP / JSON $\rightarrow$ API-слой (FastAPI) \\
+$\rightarrow$ Контур инференса: предобработка $\rightarrow$ модель $\rightarrow$ постобработка \\
+$\rightarrow$ Хранилище результатов: БД, лог, очередь
+\end{center}
+
+API в этой схеме выполняет три роли:
+
+\begin{enumerate}
+    \item \textbf{Точка входа} — единый интерфейс для всех внешних потребителей.
+    \item \textbf{Изолятор} — скрывает детали реализации модели (фреймворк, версию, способ загрузки).
+    \item \textbf{Контракт} — фиксирует форматы входных и выходных данных, коды ответов и правила обработки ошибок.
+\end{enumerate}
+
+Благодаря этому модель можно заменить, переобучить или перенести на другой сервер, не меняя код клиентов.
+
+\subsection{Синхронные и асинхронные операции}
+
+В AI-сервисе операции делятся на два класса.
+
+\textbf{Синхронные} — клиент ждёт ответ в рамках одного запроса. Подходят для быстрых моделей (например, инференс за 50--500 мс).
+
+\textbf{Асинхронные} — клиент получает идентификатор задачи и забирает результат позже. Нужны для тяжёлых моделей, пакетной обработки или длительных вычислений.
+
+Выбор между ними — архитектурное решение, влияющее на таймауты, нагрузку и требования к хранилищу.
+
+\subsection{Формат данных: JSON}
+
+Обмен данными между клиентом и AI-сервисом выполняется в формате JSON. Это текстовый формат, который легко читается человеком, поддерживается всеми языками программирования и удобен для различных структур данных (объекты, массивы, числа, строки, булевы значения).
+
+\subsection{HTTP-методы}
+
+В этой работе используются два основных метода. \textbf{GET} используется преимущественно для получения информации. \textbf{POST} используется для передачи данных серверу и создания результата.
+
+\subsection{Структура HTTP-запроса}
+
+Упрощённо HTTP-запрос можно представить следующим образом:
+
+\begin{lstlisting}[language=bash, caption={Структура HTTP-запроса}]
+METHOD + URL
+HEADERS
+BODY
+\end{lstlisting}
+
+Например:
+
+\begin{lstlisting}[language=bash, caption={Пример POST-запроса}]
+POST /predict
+Content-Type: application/json
+
+{
+    "farm_id": "FARM-100",
+    "area_ha": 2500
+}
+\end{lstlisting}
+
+\subsection{Path- и query-параметры}
+
+Данные можно передавать не только в теле запроса, но и прямо в URL.
+
+\textbf{Path-параметры} — часть пути, идентифицируют конкретный ресурс, например: \texttt{GET /predictions/123}.
+
+\textbf{Query-параметры} — идут после знака \texttt{?}, обычно используются для фильтрации, сортировки, пагинации: \texttt{GET /predictions?limit=10\&offset=0\&region=Krasnodar}.
+
+Различие важно для проектирования контракта: path-параметр описывает \emph{что} запрашивается, query-параметр уточняет \emph{как} это подаётся (сколько, в каком порядке, с какими фильтрами).
+
+\subsection{Валидация данных и Pydantic}
+
+Клиент может прислать некорректные данные: пропустить обязательное поле, передать строку вместо числа, указать отрицательную площадь.
+
+Чтобы сервис не падал и не выполнял инференс на ошибочных данных, входные и выходные структуры описываются явно — с помощью Pydantic-моделей:
+
+\begin{lstlisting}[caption={Pydantic-модели запроса и ответа}]
+from pydantic import BaseModel, Field
+
+class PredictRequest(BaseModel):
+    farm_id: str
+    region: str
+    crop_type: str
+    area_ha: float = Field(gt=0)
+
+class PredictResponse(BaseModel):
+    risk_score: float
+    risk_level: str
+    model_version: str
+\end{lstlisting}
+
+Pydantic автоматически проверяет типы и ограничения и возвращает понятную ошибку при несоответствии. Это одновременно и защита сервиса, и документация контракта.
+
+\subsection{HTTP-коды ответов}
+
+Сервер сообщает о результате не только телом ответа, но и HTTP-кодом. Основные группы:
+
+\begin{table}[H]
+\centering
+\caption{Основные HTTP-коды}
+\label{tab:http_codes}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Код} & \textbf{Значение} & \textbf{Пример в AI-сервисе} \\
+\hline
+200 & OK                    & успешный инференс \\
+201 & Created               & создана асинхронная задача \\
+400 & Bad Request           & некорректное тело запроса \\
+404 & Not Found             & задача с таким id не найдена \\
+422 & Unprocessable Entity  & ошибка валидации Pydantic \\
+500 & Internal Server Error & сбой модели или кода \\
+503 & Service Unavailable   & модель ещё не загружена \\
+\hline
+\end{tabular}
+\end{table}
+
+Корректные коды — часть контракта: клиент по ним понимает, нужно ли повторять запрос, исправлять данные или сообщать об ошибке пользователю.
+
+\subsection{Обработка ошибок}
+
+Ошибки бывают трёх типов. Ошибки клиента — некорректный JSON, отсутствует поле, неверный тип; возвращается 400 или 422 с описанием проблемы. Ошибки бизнес-логики — например, запрошен прогноз для несуществующего хозяйства; возвращается 404 или 409. Внутренние ошибки — падение модели, недоступность БД; возвращается 500, а детали пишутся в лог, но не отдаются клиенту.
+
+\subsection{OpenAPI и Swagger UI}
+
+FastAPI автоматически строит OpenAPI-спецификацию — машиночитаемое описание всех endpoints, схем запроса и ответа, кодов ошибок. На её основе генерируется Swagger UI — интерактивная страница, доступная по адресу \texttt{/docs}, где можно увидеть все endpoints, посмотреть схемы Pydantic, отправить тестовый запрос прямо из браузера и получить ответ и код. Это одновременно и документация для разработчиков, и инструмент тестирования, и основа для генерации клиентов на других языках.
+
+\subsection{Логирование и наблюдаемость}
+
+Для того чтобы обеспечить воспроизводимость, отследить деградацию модели и проверять, какая версия модели дала конкретный ответ, фиксируют входящие запросы (метод, путь, идентификатор клиента, время), результат инференса (версия модели, ключевые признаки, предсказание), ошибки (тип, стек, входные данные без персональных данных) и метрики (задержка, доля ошибок, количество запросов).
+
+\subsection{Архитектурные риски}
+
+Даже простой AI-сервис сталкивается с типовыми рисками:
+
+\begin{table}[H]
+\centering
+\caption{Архитектурные риски и меры}
+\label{tab:risks}
+\begin{tabular}{|p{4cm}|p{5cm}|p{5cm}|}
+\hline
+\textbf{Риск} & \textbf{Проявление} & \textbf{Мера} \\
+\hline
+Долгий инференс & таймауты у клиента & асинхронная обработка, очередь \\
+Некорректные данные & падение модели & валидация Pydantic \\
+Смена версии модели & непредсказуемые ответы & версионирование API и модели \\
+Перегрузка & рост задержек & лимиты, кэширование, горизонтальное масштабирование \\
+Отсутствие логов & невозможность разбора инцидента & структурированное логирование \\
+Утечка данных & нарушение приватности & минимизация логируемых полей \\
+\hline
+\end{tabular}
+\end{table}
+
+Их выявление на этапе проектирования дешевле, чем устранение в проде.
+
+\section{Создание проекта}
+
+Создайте каталог \texttt{agro\_api/}. Базовая структура:
+
+\begin{lstlisting}[language=bash, caption={Базовая структура проекта}]
+agro_api/
+    main.py
+    schemas.py
+    model.py
+    requirements.txt
+\end{lstlisting}
+
+\section{Создание виртуального окружения}
+
+Рекомендуется создать отдельное окружение Python:
+
+\begin{lstlisting}[language=bash]
+python -m venv venv
+\end{lstlisting}
+
+Активация:
+
+\begin{lstlisting}[language=bash]
+venv\Scripts\activate
+\end{lstlisting}
+
+Установите зависимости:
+
+\begin{lstlisting}[language=bash]
+pip install fastapi uvicorn
+\end{lstlisting}
+
+\section{Создание FastAPI-приложения}
+
+Создайте файл \texttt{main.py} и добавьте:
+
+\begin{lstlisting}[caption={Инициализация FastAPI-приложения}]
+from fastapi import FastAPI
+
+app = FastAPI(
+    title="Agro Scoring API",
+    description="API for agricultural risk scoring",
+    version="1.0.0"
+)
+\end{lstlisting}
+
+Здесь создаётся объект \texttt{app = FastAPI()}, который представляет наше API-приложение.
+
+\section{Первый endpoint — /health}
+
+Добавьте:
+
+\begin{lstlisting}[caption={Endpoint /health}]
+@app.get("/health")
+def health():
+    return {
+        "status": "ok"
+    }
+\end{lstlisting}
+
+Запустите приложение:
+
+\begin{lstlisting}[language=bash]
+uvicorn main:app --reload
+\end{lstlisting}
+
+Откройте \url{http://127.0.0.1:8000/health}. Ожидаемый результат:
+
+\begin{lstlisting}[language=Python]
+{"status": "ok"}
+\end{lstlisting}
+
+\section{Swagger UI}
+
+Откройте \url{http://127.0.0.1:8000/docs}. FastAPI автоматически создаёт интерактивную документацию API. В ней должен появиться \texttt{GET /health}. Нажмите \texttt{Try it out}, затем \texttt{Execute}. Обратите внимание на Request URL, Response body, Response code и Response headers.
+
+\section{OpenAPI}
+
+FastAPI автоматически формирует описание API по стандарту OpenAPI. Откройте \url{http://127.0.0.1:8000/openapi.json} — вы увидите JSON-документ, описывающий ваш API. Упрощённо:
+
+\begin{lstlisting}[caption={Фрагмент OpenAPI-спецификации}]
+{
+  "openapi": "3.x",
+  "info": {
+    "title": "Agro Scoring API"
+  },
+  "paths": {
+    "/health": {}
+  }
+}
+\end{lstlisting}
+
+\section{Задание 1. Добавление информации о модели}
+
+Создайте endpoint \texttt{GET /model-info}. Он должен возвращать:
+
+\begin{lstlisting}[caption={Ответ /model-info}]
+{
+    "model_name": "agro-risk-model",
+    "model_version": "1.0",
+    "model_type": "risk-scoring",
+    "status": "ready"
+}
+\end{lstlisting}
+
+Пример реализации:
+
+\begin{lstlisting}[caption={Endpoint /model-info}]
+@app.get("/model-info")
+def model_info():
+    return {
+        "model_name": "agro-risk-model",
+        "model_version": "1.0",
+        "model_type": "risk-scoring",
+        "status": "ready"
+    }
+\end{lstlisting}
+
+\textbf{Ответьте в отчёте:} чем \texttt{/health} отличается от \texttt{/model-info}?
+
+\textbf{Ответ:} /health проверяет только работоспособность сервиса, а /model-info возвращает метаданные о ML-модели (имя, версию, тип, статус).
+
+\section{Проектирование входных данных}
+
+Для выполнения прогноза клиент должен передать сведения о хозяйстве. Например:
+
+\begin{lstlisting}[caption={Пример входных данных}]
+{
+    "farm_id": "FARM-001",
+    "region": "Krasnodar",
+    "crop_type": "wheat",
+    "area_ha": 2500,
+    "temperature_avg": 24.3,
+    "precipitation_mm": 320,
+    "payment_delay_days": 15,
+    "previous_defaults": 0,
+    "debt": 1500000
+}
+\end{lstlisting}
+
+FastAPI должен проверить эти данные до передачи модели.
+
+\section{Pydantic}
+
+FastAPI использует Pydantic для описания структуры данных. Добавьте:
+
+\begin{lstlisting}[caption={Импорт Pydantic}]
+from pydantic import BaseModel, Field
+\end{lstlisting}
+
+Создайте:
+
+\begin{lstlisting}[caption={Модель FarmRequest}]
+class FarmRequest(BaseModel):
+    farm_id: str
+    region: str
+    crop_type: str
+    area_ha: float = Field(gt=0)
+    temperature_avg: float
+    precipitation_mm: float = Field(ge=0)
+    payment_delay_days: int = Field(ge=0)
+    previous_defaults: int = Field(ge=0)
+    debt: float = Field(ge=0)
+\end{lstlisting}
+
+Пояснения: \texttt{area\_ha: float = Field(gt=0)} означает тип данных \texttt{float}, значение строго больше 0.
+
+\subsection*{Автоматическая валидация}
+
+Если клиент передаст:
+
+\begin{lstlisting}[caption={Некорректный запрос}]
+{
+    "area_ha": -200
+}
+\end{lstlisting}
+
+FastAPI обнаружит ошибку ещё до запуска нашей функции инференса.
+
+\section{Реализация модели}
+
+В данной работе вместо модели машинного обучения будем использовать простую функцию, реализующую расчёт риска по некоторым финансовым и отраслевым показателям. Добавьте:
+
+\begin{lstlisting}[caption={Функция расчёта риска}]
+def calculate_risk(data: FarmRequest) -> float:
+    score = 0.1
+    if data.payment_delay_days > 30:
+        score += 0.3
+    if data.previous_defaults > 0:
+        score += 0.3
+    if data.debt > 5_000_000:
+        score += 0.2
+    if data.precipitation_mm < 100:
+        score += 0.1
+    return min(score, 1.0)
+\end{lstlisting}
+
+\section{Постпроцессинг}
+
+Создайте:
+
+\begin{lstlisting}[caption={Функция risk\_level}]
+def risk_level(score: float) -> str:
+    if score < 0.3:
+        return "low"
+    if score < 0.7:
+        return "medium"
+    return "high"
+\end{lstlisting}
+
+Добавьте рекомендации:
+
+\begin{lstlisting}[caption={Функция recommendation}]
+def recommendation(level: str) -> str:
+    if level == "low":
+        return "Standard review"
+    if level == "medium":
+        return "Additional check required"
+    return "High risk. Manual review required"
+\end{lstlisting}
+
+\section{Задание 2. Реализуйте POST /predict}
+
+Добавьте:
+
+\begin{lstlisting}[caption={Импорт uuid}]
+import uuid
+\end{lstlisting}
+
+Затем:
+
+\begin{lstlisting}[caption={Endpoint /predict}]
+@app.post("/predict")
+def predict(request: FarmRequest):
+    score = calculate_risk(request)
+    level = risk_level(score)
+
+    result = {
+        "request_id": str(uuid.uuid4()),
+        "farm_id": request.farm_id,
+        "risk_score": score,
+        "risk_level": level,
+        "recommendation": recommendation(level),
+        "model_version": "1.0"
+    }
+    return result
+\end{lstlisting}
+
+\section{Проверка через Swagger}
+
+Откройте \texttt{/docs}. Выберите \texttt{POST /predict}. Введите:
+
+\begin{lstlisting}[caption={Тестовый запрос}]
+{
+    "farm_id": "FARM-001",
+    "region": "Krasnodar",
+    "crop_type": "wheat",
+    "area_ha": 2500,
+    "temperature_avg": 24.3,
+    "precipitation_mm": 320,
+    "payment_delay_days": 45,
+    "previous_defaults": 1,
+    "debt": 6500000
+}
+\end{lstlisting}
+
+Получите результат. Например:
+
+\begin{lstlisting}[caption={Пример ответа}]
+{
+    "request_id": "7c8343c0-c912-4ab0-a56a-a4881894c7af",
+    "farm_id": "FARM-001",
+    "risk_score": 0.9,
+    "risk_level": "high",
+    "recommendation": "High risk. Manual review required",
+    "model_version": "1.0"
+}
+\end{lstlisting}
+
+\section{Модель ответа (Response Model)}
+
+До настоящего момента мы описывали структуру входа, но не структуру ответа. Создайте:
+
+\begin{lstlisting}[caption={Модель PredictionResponse}]
+class PredictionResponse(BaseModel):
+    request_id: str
+    farm_id: str
+    risk_score: float
+    risk_level: str
+    recommendation: str
+    model_version: str
+\end{lstlisting}
+
+Измените endpoint:
+
+\begin{lstlisting}[caption={Endpoint /predict с response\_model}]
+@app.post(
+    "/predict",
+    response_model=PredictionResponse
+)
+def predict(request: FarmRequest):
+    ...
+\end{lstlisting}
+
+Внешняя система должна получать ожидаемую структуру данных независимо от внутреннего устройства модели. Модель ответа позволяет контролировать формат ответа, автоматически документировать API, проверять данные ответа, скрывать ненужные внутренние поля и делать контракт между сервером и клиентом явным.
+
+\section{Задание 3. Организовать хранение результатов}
+
+Создадим временное хранилище в оперативной памяти (в виде словаря):
+
+\begin{lstlisting}[caption={Хранилище прогнозов}]
+predictions = {}
+\end{lstlisting}
+
+Измените \texttt{/predict}:
+
+\begin{lstlisting}[caption={/predict с сохранением результата}]
+@app.post(
+    "/predict",
+    response_model=PredictionResponse
+)
+def predict(request: FarmRequest):
+    score = calculate_risk(request)
+    level = risk_level(score)
+    request_id = str(uuid.uuid4())
+
+    result = {
+        "request_id": request_id,
+        "farm_id": request.farm_id,
+        "risk_score": score,
+        "risk_level": level,
+        "recommendation": recommendation(level),
+        "model_version": "1.0"
+    }
+    predictions[request_id] = result
+    return result
+\end{lstlisting}
+
+\section{Path Parameters}
+
+Предположим, необходимо получить конкретный прогноз по идентификатору. Запрос: \texttt{GET /predictions/abc-123}. Здесь \texttt{abc-123} является path parameter. FastAPI позволяет записать:
+
+\begin{lstlisting}[caption={Path parameter}]
+@app.get("/predictions/{request_id}")
+def get_prediction(request_id: str):
+    ...
+\end{lstlisting}
+
+Значение из URL попадёт в переменную \texttt{request\_id}.
+
+\section{Задание 4. Получение прогноза}
+
+Импортируйте:
+
+\begin{lstlisting}[caption={Импорт HTTPException}]
+from fastapi import HTTPException
+\end{lstlisting}
+
+Реализуйте:
+
+\begin{lstlisting}[caption={Endpoint /predictions/\{request\_id\}}]
+@app.get(
+    "/predictions/{request_id}",
+    response_model=PredictionResponse
+)
+def get_prediction(request_id: str):
+    if request_id not in predictions:
+        raise HTTPException(
+            status_code=404,
+            detail="Prediction not found"
+        )
+    return predictions[request_id]
+\end{lstlisting}
+
+\subsection*{HTTP коды ошибок}
+
+Обратите внимание на 422. Попробуйте передать:
+
+\begin{lstlisting}[caption={Некорректные данные}]
+{
+    "farm_id": "FARM-1",
+    "region": "Krasnodar",
+    "crop_type": "wheat",
+    "area_ha": -100,
+    "temperature_avg": 23,
+    "precipitation_mm": 200,
+    "payment_delay_days": 10,
+    "previous_defaults": 0,
+    "debt": 10000
+}
+\end{lstlisting}
+
+FastAPI должен вернуть ошибку валидации. Обратите внимание на HTTP-код. Разберите структуру ответа.
+
+\textbf{Ответьте:} почему такой запрос не должен доходить до ML-модели?
+
+\textbf{Ответ:} Запрос с area\_ha = -100 не должен доходить до модели, потому что отрицательная площадь физически невозможна. Pydantic отсекает такие данные на этапе валидации (код 422), защищая модель от некорректного входа.
+
+\section{Query Parameters}
+
+Теперь реализуем получение списка прогнозов. Запрос: \texttt{GET /predictions?limit=10}. Здесь \texttt{limit=10} является query parameter. Пример:
+
+\begin{lstlisting}[caption={Endpoint /predictions}]
+@app.get("/predictions")
+def get_predictions(limit: int = 10):
+    values = list(predictions.values())
+    return values[:limit]
+\end{lstlisting}
+
+\section{Задание 5. Фильтрация}
+
+Добавьте возможность: \texttt{GET /predictions?risk\_level=high}. Например:
+
+\begin{lstlisting}[caption={/predictions с фильтрацией}]
+@app.get("/predictions")
+def get_predictions(
+    limit: int = 10,
+    risk_level: str | None = None
+):
+    values = list(predictions.values())
+
+    if risk_level is not None:
+        values = [item for item in values if item["risk_level"] == risk_level]
+
+    return values[:limit]
+\end{lstlisting}
+
+Протестируйте: \texttt{/predictions}, \texttt{/predictions?limit=2}, \texttt{/predictions?risk\_level=high}, \texttt{/predictions?risk\_level=medium\&limit=5}.
+
+\section{Задание 6. Валидация Query Parameters}
+
+Необходимо исключить запрос: \texttt{GET /predictions?limit=-100}. Импортируйте:
+
+\begin{lstlisting}[caption={Импорт Query}]
+from fastapi import Query
+\end{lstlisting}
+
+Измените параметр:
+
+\begin{lstlisting}[caption={Валидация limit}]
+limit: int = Query(
+    default=10,
+    ge=1,
+    le=100
+)
+\end{lstlisting}
+
+Теперь допустимый диапазон: $1 \le \text{limit} \le 100$.
+
+\section{Задание 7. Проверка бизнес ограничений}
+
+Pydantic проверяет формат данных, но некоторые ошибки невозможно определить только по типу значения, иногда необходима дополнительная проверка некоторых ограничений. Создайте:
+
+\begin{lstlisting}[caption={Множество допустимых регионов}]
+ALLOWED_REGIONS = {
+    "Krasnodar",
+    "Rostov",
+    "Stavropol"
+}
+\end{lstlisting}
+
+В \texttt{/predict} добавьте:
+
+\begin{lstlisting}[caption={Бизнес-валидация региона}]
+if request.region not in ALLOWED_REGIONS:
+    raise HTTPException(
+        status_code=400,
+        detail="Unknown region"
+    )
+\end{lstlisting}
+
+\section{Задание 8. Возвращаемые статусы}
+
+Добавьте код ответа для \texttt{POST /predict}. Например:
+
+\begin{lstlisting}[caption={Явное указание кода ответа}]
+from fastapi import status
+
+@app.post(
+    "/predict",
+    response_model=PredictionResponse,
+    status_code=status.HTTP_201_CREATED
+)
+\end{lstlisting}
+
+\textbf{Вопрос:} какой статус корректнее для инференса — «200 OK» или «201 Created»? Архитектор API должен выбрать семантику и использовать её последовательно.
+
+\textbf{Ответ:} Если /predict создаёт сохраняемый ресурс (запись прогноза с request\_id), семантически корректнее 201 Created. В нашей реализации результат сохраняется в словаре predictions, поэтому выбран код 201.
+
+\section{OpenAPI как контракт}
+
+Откройте Swagger UI, теперь в документации автоматически отображаются \texttt{FarmRequest}, \texttt{PredictionResponse}, типы данных, обязательные поля, ограничения, HTTP endpoints и HTTP methods.
+
+\section{Задание 9. Добавьте описание endpoints}
+
+FastAPI позволяет сделать документацию более понятной. Например:
+
+\begin{lstlisting}[caption={Описание /health}]
+@app.get(
+    "/health",
+    summary="Health check",
+    description="Returns current API status"
+)
+def health():
+    ...
+\end{lstlisting}
+
+Для \texttt{/predict}:
+
+\begin{lstlisting}[caption={Описание /predict}]
+@app.post(
+    "/predict",
+    response_model=PredictionResponse,
+    summary="Farm risk assessment",
+    description="Runs inference of the agro scoring model"
+)
+def predict(request: FarmRequest):
+    ...
+\end{lstlisting}
+
+Проверьте изменение Swagger UI.
+
+\section{Задание 10. Тестирование API}
+
+Последовательно выполните запросы и заполните таблицу тест-кейсов.
+
+\begin{table}[H]
+\centering
+\caption{Таблица тест-кейсов}
+\label{tab:test_cases}
+\begin{tabular}{|c|p{5cm}|c|c|c|}
+\hline
+\textbf{№} & \textbf{Запрос} & \textbf{Ожидаемый HTTP-код} & \textbf{Полученный код} & \textbf{Результат} \\
+\hline
+1  & GET /health & 200 & 200 & успех \\
+2  & GET /model-info & 200 & 200 & успех \\
+3  & корректный POST /predict & 201 & 201 & успех \\
+4  & area\_ha = -100 & 422 & 422 & успех \\
+5  & неизвестный регион & 400 & 400 & успех \\
+6  & существующий request\_id & 200 & 200 & успех \\
+7  & неизвестный request\_id & 404 & 404 & успех \\
+8  & limit = 2 & 200 & 200 & успех \\
+9  & risk\_level = high & 200 & 200 & успех \\
+10 & limit = -5 & 422 & 422 & успех \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Задание 11. Проанализируйте API как контракт}
+
+Для каждого endpoint заполните таблицу.
+
+\begin{table}[H]
+\centering
+\caption{Анализ API-контракта}
+\label{tab:api_contract}
+\begin{tabular}{|p{3cm}|p{1.5cm}|p{2.5cm}|p{3cm}|p{1.5cm}|p{2cm}|}
+\hline
+\textbf{Endpoint} & \textbf{Method} & \textbf{Input} & \textbf{Output} & \textbf{Success} & \textbf{Возможные ошибки} \\
+\hline
+/health & GET & --- & status & 200 & 500 \\
+/model-info & GET & --- & model info & 200 & 500 \\
+/predict & POST & FarmRequest & PredictionResponse & 201 & 400, 422, 500 \\
+/predictions/\{id\} & GET & path id & PredictionResponse & 200 & 404 \\
+/predictions & GET & query params & list & 200 & 422 \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Задание 12. Разделение приложения на модули}
+
+Разделите приложение на несколько файлов:
+
+\begin{lstlisting}[language=bash, caption={Структура проекта после рефакторинга}]
+agro_api/
+    main.py
+    schemas.py
+    model.py
+    services.py
+    storage.py
+\end{lstlisting}
+
+\textbf{schemas.py} содержит: \texttt{FarmRequest}, \texttt{PredictionResponse}.
+
+\textbf{model.py} содержит: \texttt{calculate\_risk()}.
+
+\textbf{services.py} содержит: \texttt{risk\_level()}, \texttt{recommendation()}, \texttt{is\_valid\_region()}, \texttt{build\_prediction()}.
+
+\textbf{storage.py} содержит: \texttt{predictions}, \texttt{save\_prediction()}, \texttt{get\_prediction()}, \texttt{list\_predictions()}.
+
+\textbf{main.py} содержит: инициализацию FastAPI и маршрутизацию endpoints.
+
+Отчёт должен содержать:
+
+\begin{enumerate}
+    \item Цель работы.
+    \item Краткое описание архитектуры API.
+    \item Исходный код приложения: \url{https://github.com/dashakomarova2002-commits/HW_1_SISS}
+    \item Реализованные endpoints: GET /health, GET /model-info, POST /predict, GET /predictions/\{request\_id\}, GET /predictions.
+    \item Скриншот Swagger UI.
+    \item Скриншот успешного /predict.
+    \item Скриншот ошибки Pydantic.
+    \item Скриншот 404 Not Found.
+    \item Таблицу тест-кейсов.
+    \item Таблицу API-контракта.
+    \item В качестве вывода опишите разработанную архитектуру, желательно нарисовать компонентную схему архитектуры. Также сделайте краткий вывод о роли REST API в AI-системе.
+\end{enumerate}
+
+\section{Критерии оценки}
+
+\begin{table}[H]
+\centering
+\caption{Критерии оценки}
+\label{tab:criteria}
+\begin{tabular}{|p{10cm}|c|}
+\hline
+\textbf{Критерий} & \textbf{Баллы} \\
+\hline
+Приложение запускается на FastAPI & 5 \\
+Реализован /health & 5 \\
+Реализован /model-info & 5 \\
+Реализован /predict & 15 \\
+Используется Pydantic & 10 \\
+Реализована структурная валидация & 10 \\
+Реализована бизнес-валидация & 10 \\
+Реализован поиск по request\_id & 10 \\
+Используются path/query parameters & 10 \\
+Обрабатывается HTTP 404 & 5 \\
+Корректно используются HTTP-коды & 5 \\
+Проведено тестирование & 5 \\
+Проанализирован OpenAPI-контракт & 5 \\
+\hline
+\textbf{Итого} & \textbf{100} \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Скриншоты работы приложения}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{01_swagger.png}
+    \caption{Swagger UI со всеми endpoints}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{02_predict_success.png}
+    \caption{Успешный POST /predict (код 201)}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{03_get_by_id.png}
+    \caption{Получение прогноза по request\_id}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{04_list.png}
+    \caption{Список прогнозов с фильтрацией}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{05_404.png}
+    \caption{Ошибка 404 Not Found}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{06_422.png}
+    \caption{Ошибка валидации Pydantic (422)}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{07_400.png}
+    \caption{Ошибка бизнес-валидации региона (400)}
+\end{figure}
+
+\section*{Приложение А: Полный код приложения}
+
+\begin{lstlisting}[caption={schemas.py}]
+from pydantic import BaseModel, Field
+
+
+class FarmRequest(BaseModel):
+    farm_id: str
+    region: str
+    crop_type: str
+    area_ha: float = Field(gt=0)
+    temperature_avg: float
+    precipitation_mm: float = Field(ge=0)
+    payment_delay_days: int = Field(ge=0)
+    previous_defaults: int = Field(ge=0)
+    debt: float = Field(ge=0)
+
+
+class PredictionResponse(BaseModel):
+    request_id: str
+    farm_id: str
+    risk_score: float
+    risk_level: str
+    recommendation: str
+    model_version: str
+\end{lstlisting}
+
+\begin{lstlisting}[caption={model.py}]
+from schemas import FarmRequest
+
+
+def calculate_risk(data: FarmRequest) -> float:
+    score = 0.1
+    if data.payment_delay_days > 30:
+        score += 0.3
+    if data.previous_defaults > 0:
+        score += 0.3
+    if data.debt > 5_000_000:
+        score += 0.2
+    if data.precipitation_mm < 100:
+        score += 0.1
+    return min(score, 1.0)
+\end{lstlisting}
+
+\begin{lstlisting}[caption={services.py}]
+from schemas import FarmRequest
+from model import calculate_risk
+
+ALLOWED_REGIONS = {"Krasnodar", "Rostov", "Stavropol"}
+
+
+def risk_level(score: float) -> str:
+    if score < 0.3:
+        return "low"
+    if score < 0.7:
+        return "medium"
+    return "high"
+
+
+def recommendation(level: str) -> str:
+    if level == "low":
+        return "Standard review"
+    if level == "medium":
+        return "Additional check required"
+    return "High risk. Manual review required"
+
+
+def is_valid_region(region: str) -> bool:
+    return region in ALLOWED_REGIONS
+
+
+def build_prediction(request: FarmRequest, request_id: str) -> dict:
+    score = calculate_risk(request)
+    level = risk_level(score)
+    return {
+        "request_id": request_id,
+        "farm_id": request.farm_id,
+        "risk_score": score,
+        "risk_level": level,
+        "recommendation": recommendation(level),
+        "model_version": "1.0"
+    }
+\end{lstlisting}
+
+\begin{lstlisting}[caption={storage.py}]
+predictions: dict = {}
+
+
+def save_prediction(request_id: str, result: dict) -> None:
+    predictions[request_id] = result
+
+
+def get_prediction(request_id: str) -> dict | None:
+    return predictions.get(request_id)
+
+
+def list_predictions(limit: int = 10, risk_level: str | None = None) -> list:
+    values = list(predictions.values())
+    if risk_level is not None:
+        values = [item for item in values if item["risk_level"] == risk_level]
+    return values[:limit]
+\end{lstlisting}
+
+\begin{lstlisting}[caption={main.py}]
+import uuid
+
+from fastapi import FastAPI, HTTPException, Query, status
+
+from schemas import FarmRequest, PredictionResponse
+from services import build_prediction, is_valid_region
+from storage import save_prediction, get_prediction, list_predictions
+
+app = FastAPI(
+    title="Agro Scoring API",
+    description="API for agricultural risk scoring",
+    version="1.0.0"
+)
+
+
+@app.get("/health", summary="Health check")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/model-info")
+def model_info():
+    return {
+        "model_name": "agro-risk-model",
+        "model_version": "1.0",
+        "model_type": "risk-scoring",
+        "status": "ready"
+    }
+
+
+@app.post(
+    "/predict",
+    response_model=PredictionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Farm risk assessment"
+)
+def predict(request: FarmRequest):
+    if not is_valid_region(request.region):
+        raise HTTPException(status_code=400, detail="Unknown region")
+
+    request_id = str(uuid.uuid4())
+    result = build_prediction(request, request_id)
+    save_prediction(request_id, result)
+    return result
+
+
+@app.get(
+    "/predictions/{request_id}",
+    response_model=PredictionResponse
+)
+def get_prediction_endpoint(request_id: str):
+    result = get_prediction(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Prediction not found")
+    return result
+
+
+@app.get("/predictions")
+def get_predictions(
+    limit: int = Query(default=10, ge=1, le=100),
+    risk_level: str | None = None
+):
+    return list_predictions(limit=limit, risk_level=risk_level)
+\end{lstlisting}
+
+\section*{Вывод}
+
+В ходе работы спроектирован и реализован AI-сервис агроскоринга на FastAPI. Архитектура включает: API-слой (FastAPI), слой валидации (Pydantic-схемы FarmRequest и PredictionResponse), контур инференса (функция calculate\_risk и постпроцессинг risk\_level и recommendation) и хранилище результатов (словарь predictions в оперативной памяти).
+
+REST API в AI-системе выполняет три ключевые роли: точка входа для всех внешних потребителей (CRM, портал, мобильное приложение), изолятор деталей реализации модели и контракт, фиксирующий форматы данных, коды ответов и правила обработки ошибок. Благодаря этому модель можно заменить или переобучить без изменения кода клиентов.
+
+Компонентная схема:
+
+\begin{center}
+Клиент (CRM / веб-портал / мобильное приложение) \\
+$\downarrow$ HTTP/JSON \\
+FastAPI (main.py) \\
+$\downarrow$ \\
+Pydantic-схемы (schemas.py) $\rightarrow$ валидация \\
+$\downarrow$ \\
+Модель (model.py) $\rightarrow$ расчёт риска и постпроцессинг \\
+$\downarrow$ \\
+Хранилище (predictions) $\rightarrow$ ответ клиенту
+\end{center}
+
+\end{document}
